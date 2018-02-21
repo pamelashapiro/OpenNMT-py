@@ -48,18 +48,18 @@ def model_opts(parser):
     group.add_argument('-model_type', default='text',
                        help="""Type of source model to use. Allows
                        the system to incorporate non-text inputs.
-                       Options are [text|img|audio].""")
+                       Options are [text|img|audio|char].""")
 
     group.add_argument('-encoder_type', type=str, default='rnn',
                        choices=['rnn', 'brnn', 'mean', 'transformer', 'cnn'],
                        help="""Type of encoder layer to use. Non-RNN layers
                        are experimental. Options are
-                       [rnn|brnn|mean|transformer|cnn].""")
+                       [rnn|brnn|mean|transformer|cnn|charcnn].""")
     group.add_argument('-decoder_type', type=str, default='rnn',
                        choices=['rnn', 'transformer', 'cnn'],
                        help="""Type of decoder layer to use. Non-RNN layers
                        are experimental. Options are
-                       [rnn|transformer|cnn].""")
+                       [rnn|transformer|cnn|charcnn].""")
 
     group.add_argument('-layers', type=int, default=-1,
                        help='Number of layers in enc/dec.')
@@ -119,7 +119,7 @@ def preprocess_opts(parser):
     group = parser.add_argument_group('Data')
     group.add_argument('-data_type', default="text",
                        help="""Type of the source input.
-                       Options are [text|img].""")
+                       Options are [text|img|char].""")
 
     group.add_argument('-train_src', required=True,
                        help="Path to the training source data")
@@ -359,7 +359,7 @@ def translate_opts(parser):
 
     group = parser.add_argument_group('Data')
     group.add_argument('-data_type', default="text",
-                       help="Type of the source input. Options: [text|img].")
+                       help="Type of the source input. Options: [text|img|char].")
 
     group.add_argument('-src',   required=True,
                        help="""Source sequence to decode (one line per

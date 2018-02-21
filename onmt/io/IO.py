@@ -11,6 +11,7 @@ from onmt.io.DatasetBase import PAD_WORD, BOS_WORD, EOS_WORD
 from onmt.io.TextDataset import TextDataset
 from onmt.io.ImageDataset import ImageDataset
 from onmt.io.AudioDataset import AudioDataset
+from onmt.io.CharDataset import CharDataset
 
 
 def _getstate(self):
@@ -45,6 +46,8 @@ def get_fields(data_type, n_src_features, n_tgt_features):
         return ImageDataset.get_fields(n_src_features, n_tgt_features)
     elif data_type == 'audio':
         return AudioDataset.get_fields(n_src_features, n_tgt_features)
+    elif data_type == 'char':
+        return CharDataset.get_fields(n_src_features, n_tgt_features)
 
 
 def load_fields_from_vocab(vocab, data_type="text"):
@@ -95,7 +98,7 @@ def get_num_features(data_type, corpus_file, side):
     """
     Args:
         data_type (str): type of the source input.
-            Options are [text|img|audio].
+            Options are [text|img|audio|char].
         corpus_file (str): file path to get the features.
         side (str): for source or for target.
 
@@ -110,6 +113,8 @@ def get_num_features(data_type, corpus_file, side):
         return ImageDataset.get_num_features(corpus_file, side)
     elif data_type == 'audio':
         return AudioDataset.get_num_features(corpus_file, side)
+    elif data_type == 'char':
+        return CharDataset.get_num_features(corpus_file, side)
 
 
 def make_features(batch, side, data_type='text'):
@@ -213,6 +218,10 @@ def build_dataset(fields, data_type, src_path, tgt_path, src_dir=None,
                                normalize_audio=normalize_audio,
                                use_filter_pred=use_filter_pred)
 
+    elif data_type == 'char':
+        dataset = CharDataset(fields, src_examples_iter, tgt_examples_iter, num_src_feats, num_tgt_feats) 
+        # need to add rest of parameters
+
     return dataset
 
 
@@ -252,7 +261,16 @@ def build_vocab(train_dataset_files, fields, data_type, share_vocab,
         print(" * reloading %s." % path)
         for ex in dataset.examples:
             for k in fields:
+
+                # Also build character-level vocabulary
+                if k == "char":
+                    src_val = getattr(ex, "src", None)
+                    tgt_val = getattr(ex, "tgt", None)
+                    for v in list(src_val + tgt_val):
+                        counter[k].update(v)
+
                 val = getattr(ex, k, None)
+
                 if val is not None and not fields[k].sequential:
                     val = [val]
                 counter[k].update(val)
@@ -269,7 +287,7 @@ def build_vocab(train_dataset_files, fields, data_type, share_vocab,
         _build_field_vocab(fields[key], counter[key])
         print(" * %s vocab size: %d." % (key, len(fields[key].vocab)))
 
-    if data_type == 'text':
+    if data_type == 'text' or data_type == 'char':
         _build_field_vocab(fields["src"], counter["src"],
                            max_size=src_vocab_size,
                            min_freq=src_words_min_frequency)
@@ -281,6 +299,11 @@ def build_vocab(train_dataset_files, fields, data_type, share_vocab,
             key = "src_feat_" + str(j)
             _build_field_vocab(fields[key], counter[key])
             print(" * %s vocab size: %d." % (key, len(fields[key].vocab)))
+
+        if data_type == 'char':
+
+            _build_field_vocab(fields["char"], counter["char"])
+            print(" * char vocab size: %d." % len(fields["char"].vocab))
 
         # Merge the input and output vocabularies.
         if share_vocab:
@@ -320,6 +343,11 @@ def _make_examples_nfeats_tpl(data_type, src_path, src_dir,
                 src_path, src_dir, sample_rate,
                 window_size, window_stride, window,
                 normalize_audio)
+
+    elif data_type == 'char':
+        src_examples_iter, num_src_feats = \
+            CharDataset.make_char_examples_nfeats_tpl(
+                src_path, src_seq_length_trunc, "src")
 
     return src_examples_iter, num_src_feats
 

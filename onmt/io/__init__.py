@@ -8,6 +8,7 @@ from onmt.io.DatasetBase import ONMTDatasetBase, PAD_WORD, BOS_WORD, \
 from onmt.io.TextDataset import TextDataset, ShardedTextCorpusIterator
 from onmt.io.ImageDataset import ImageDataset
 from onmt.io.AudioDataset import AudioDataset
+from onmt.io.CharDataset import CharDataset
 
 
 __all__ = [PAD_WORD, BOS_WORD, EOS_WORD, UNK, ONMTDatasetBase,
@@ -16,5 +17,5 @@ __all__ = [PAD_WORD, BOS_WORD, EOS_WORD, UNK, ONMTDatasetBase,
            load_fields_from_vocab, get_fields,
            save_fields_to_vocab, build_dataset,
            build_vocab, merge_vocabs, OrderedIterator,
-           TextDataset, ImageDataset, AudioDataset,
+           TextDataset, ImageDataset, AudioDataset, CharDataset,
            ShardedTextCorpusIterator]

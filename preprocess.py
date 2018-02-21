@@ -40,7 +40,7 @@ def parse_args():
     return opt
 
 
-def build_save_text_dataset_in_shards(src_corpus, tgt_corpus, fields,
+def build_save_text_dataset_in_shards(data_type, src_corpus, tgt_corpus, fields,
                                       corpus_type, opt):
     '''
     Divide the big corpus into shards, and build dataset separately.
@@ -91,7 +91,15 @@ def build_save_text_dataset_in_shards(src_corpus, tgt_corpus, fields,
     index = 0
     while not src_iter.hit_end():
         index += 1
-        dataset = onmt.io.TextDataset(
+        if data_type == 'text':
+            dataset = onmt.io.TextDataset(
+                fields, src_iter, tgt_iter,
+                src_iter.num_feats, tgt_iter.num_feats,
+                src_seq_length=opt.src_seq_length,
+                tgt_seq_length=opt.tgt_seq_length,
+                dynamic_dict=opt.dynamic_dict)
+        elif data_type == 'char':
+            dataset = onmt.io.CharDataset(
                 fields, src_iter, tgt_iter,
                 src_iter.num_feats, tgt_iter.num_feats,
                 src_seq_length=opt.src_seq_length,
@@ -122,8 +130,8 @@ def build_save_dataset(corpus_type, fields, opt):
         tgt_corpus = opt.valid_tgt
 
     # Currently we only do preprocess sharding for corpus: data_type=='text'.
-    if opt.data_type == 'text':
-        return build_save_text_dataset_in_shards(
+    if opt.data_type == 'text' or opt.data_type == 'char':
+        return build_save_text_dataset_in_shards(opt.data_type,
                 src_corpus, tgt_corpus, fields,
                 corpus_type, opt)
 

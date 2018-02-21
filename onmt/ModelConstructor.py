@@ -13,7 +13,7 @@ from onmt.Models import NMTModel, MeanEncoder, RNNEncoder, \
                         StdRNNDecoder, InputFeedRNNDecoder
 from onmt.modules import Embeddings, ImageEncoder, CopyGenerator, \
                          TransformerEncoder, TransformerDecoder, \
-                         CNNEncoder, CNNDecoder, AudioEncoder
+                         CNNEncoder, CNNDecoder, AudioEncoder, CharCNNEncoder
 from onmt.Utils import use_gpu
 
 
@@ -65,6 +65,10 @@ def make_encoder(opt, embeddings):
         return CNNEncoder(opt.enc_layers, opt.rnn_size,
                           opt.cnn_kernel_width,
                           opt.dropout, embeddings)
+    elif opt.encoder_type == "char_cnn":
+        return CharCNNEncoder(opt.enc_layers, opt.rnn_size,
+                              opt.cnn_kernel_width,
+                              opt.dropout, embeddings)
     elif opt.encoder_type == "mean":
         return MeanEncoder(opt.enc_layers, embeddings)
     else:
