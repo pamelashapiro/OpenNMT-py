@@ -63,9 +63,10 @@ class CharCNNEncoder(EncoderBase):
         self.embeddings = embeddings
         self.no_pack_padded_seq = False
 
+        print("kernel_width: ", kernel_width)
+
         self.conv = nn.Conv1d(embeddings.embedding_size, num_kernels, kernel_width)
-        self.pool = nn.MaxPool1d(kernel_width)
-        self.highway = Highway(kernel_width, num_highway_layers)
+        self.highway = Highway(num_kernels, num_highway_layers)
 
         # Use pytorch version when available.
         if rnn_type == "SRU":
@@ -79,7 +80,7 @@ class CharCNNEncoder(EncoderBase):
                     bidirectional=bidirectional)
         else:
             self.rnn = getattr(nn, rnn_type)(
-                    input_size=embeddings.embedding_size,
+                    input_size=num_kernels,
                     hidden_size=hidden_size,
                     num_layers=num_layers,
                     dropout=dropout,
@@ -96,10 +97,10 @@ class CharCNNEncoder(EncoderBase):
         num_words = max(lengths)
         word_len = int(s_len / num_words)
         cnn_emb = emb.view(num_words * batch, emb_dim, word_len)
-
-        # I think I need to be more careful with reshaping both above and below
-
-        word_emb = self.highway(self.pool(self.conv(cnn_emb))).view(s_len, batch, -1)
+        cnn_output = self.conv(cnn_emb) # Maybe should wrap this in Tanh
+        pool_output = torch.max(F.tanh(cnn_output), 2)[0]
+        highway_output = self.highway(pool_output)
+        word_emb = highway_output.view(num_words, batch, -1)
 
         packed_emb = word_emb
         if lengths is not None and not self.no_pack_padded_seq:
