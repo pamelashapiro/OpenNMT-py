@@ -296,23 +296,24 @@ def lazily_load_dataset(corpus_type):
         yield lazy_dataset_loader(pt, corpus_type)
 
 
-def load_fields(dataset, data_type, checkpoint):
+def load_fields(dataset, data_type, checkpoint, src_chars=False, tgt_chars=False):
     if checkpoint is not None:
         print('Loading vocab from checkpoint at %s.' % opt.train_from)
         fields = onmt.io.load_fields_from_vocab(
-            checkpoint['vocab'], data_type)
+            checkpoint['vocab'], data_type, src_chars=src_chars, tgt_chars=tgt_chars)
     else:
         fields = onmt.io.load_fields_from_vocab(
-            torch.load(opt.data + '.vocab.pt'), data_type)
-    fields = dict([(k, f) for (k, f) in fields.items()
-                   if k in dataset.examples[0].__dict__])
+            torch.load(opt.data + '.vocab.pt'), data_type, src_chars=src_chars, tgt_chars=tgt_chars)
 
-    if data_type == 'text':
+    if data_type == 'text' or data_type == 'char':
         print(' * vocabulary size. source = %d; target = %d' %
               (len(fields['src'].vocab), len(fields['tgt'].vocab)))
     else:
         print(' * vocabulary size. target = %d' %
               (len(fields['tgt'].vocab)))
+
+    fields = dict([(k, f) for (k, f) in fields.items()
+                   if k in dataset.examples[0].__dict__])
 
     return fields
 
@@ -382,7 +383,13 @@ def main():
     data_type = first_dataset.data_type
 
     # Load fields generated from preprocess phase.
-    fields = load_fields(first_dataset, data_type, checkpoint)
+    src_chars = False
+    if model_opt.encoder_type == 'charcnn':
+        src_chars = True
+    tgt_chars = False
+    if model_opt.decoder_type == 'charcnn':
+        tgt_chars = True
+    fields = load_fields(first_dataset, data_type, checkpoint, src_chars=src_chars, tgt_chars=tgt_chars)
 
     # Report src/tgt features.
     collect_report_features(fields)

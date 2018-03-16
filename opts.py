@@ -16,6 +16,8 @@ def model_opts(parser):
                        help='Word embedding size for tgt.')
     group.add_argument('-word_vec_size', type=int, default=-1,
                        help='Word embedding size for src and tgt.')
+    group.add_argument('-char_vec_size', type=int, default=25,
+                       help='Word embedding size for src and tgt.')
 
     group.add_argument('-share_decoder_embeddings', action='store_true',
                        help="""Use a shared weight matrix for the input and
@@ -43,7 +45,7 @@ def model_opts(parser):
                        embedding sizes will be set to N^feat_vec_exponent
                        where N is the number of values the feature takes.""")
 
-    # Encoder-Deocder Options
+    # Encoder-Decoder Options
     group = parser.add_argument_group('Model- Encoder-Decoder')
     group.add_argument('-model_type', default='text',
                        help="""Type of source model to use. Allows
@@ -51,12 +53,12 @@ def model_opts(parser):
                        Options are [text|img|audio|char].""")
 
     group.add_argument('-encoder_type', type=str, default='rnn',
-                       choices=['rnn', 'brnn', 'mean', 'transformer', 'cnn'],
+                       choices=['rnn', 'brnn', 'mean', 'transformer', 'cnn', 'charcnn'],
                        help="""Type of encoder layer to use. Non-RNN layers
                        are experimental. Options are
                        [rnn|brnn|mean|transformer|cnn|charcnn].""")
     group.add_argument('-decoder_type', type=str, default='rnn',
-                       choices=['rnn', 'transformer', 'cnn'],
+                       choices=['rnn', 'transformer', 'cnn', 'charcnn'],
                        help="""Type of decoder layer to use. Non-RNN layers
                        are experimental. Options are
                        [rnn|transformer|cnn|charcnn].""")
@@ -72,6 +74,12 @@ def model_opts(parser):
     group.add_argument('-cnn_kernel_width', type=int, default=3,
                        help="""Size of windows in the cnn, the kernel_size is
                        (cnn_kernel_width, 1) in conv layer""")
+    group.add_argument('-char_kernel_width', type=int, default=6,
+                       help="""Size of windows in the charCNN""")
+    group.add_argument('-char_num_kernels', type=int, default=1000,
+                       help="""Number of kernels in the charCNN""")
+    group.add_argument('-char_num_highway_layers', type=int, default=2,
+                       help="""Number of highway layers in the charCNN""")
 
     group.add_argument('-input_feed', type=int, default=1,
                        help="""Feed the context vector at each time step as
@@ -143,6 +151,11 @@ def preprocess_opts(parser):
                        is in bytes. Optimal value should be multiples of
                        64 bytes.""")
 
+    group.add_argument('-src_chars', action='store_true',
+                       help="""Whether to use characters on the source side.""")
+    group.add_argument('-tgt_chars', action='store_true',
+                       help="""Whether to use characters on the target side.""")
+
     # Dictionary options, for text corpus
 
     group = parser.add_argument_group('Vocab')
@@ -175,6 +188,8 @@ def preprocess_opts(parser):
                        help="Maximum target sequence length to keep.")
     group.add_argument('-tgt_seq_length_trunc', type=int, default=0,
                        help="Truncate target sequence length.")
+
+    parser.add_argument('--max_word_length', type=int, default=35, help="For the character models, maximum word length.")
     group.add_argument('-lower', action='store_true', help='lowercase data')
 
     # Data processing options

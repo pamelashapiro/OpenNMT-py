@@ -13,8 +13,31 @@ from onmt.Models import NMTModel, MeanEncoder, RNNEncoder, \
                         StdRNNDecoder, InputFeedRNNDecoder
 from onmt.modules import Embeddings, ImageEncoder, CopyGenerator, \
                          TransformerEncoder, TransformerDecoder, \
-                         CNNEncoder, CNNDecoder, AudioEncoder, CharCNNEncoder
+                         CNNEncoder, CNNDecoder, AudioEncoder
+from onmt.modules.CharCNN import CharCNNEncoder
 from onmt.Utils import use_gpu
+
+
+def make_char_embeddings(opt, char_dict):
+    """
+    Make an Embeddings instance.
+    Args:
+        opt: the option in current environment.
+        word_dict(Vocab): words dictionary.
+    """
+    embedding_dim = opt.char_vec_size
+
+    char_padding_idx = char_dict.stoi[onmt.io.PAD_WORD]
+    num_char_embeddings = len(char_dict)
+
+    return Embeddings(word_vec_size=embedding_dim,
+                      position_encoding=opt.position_encoding,
+                      feat_merge=opt.feat_merge,
+                      feat_vec_exponent=opt.feat_vec_exponent,
+                      feat_vec_size=opt.feat_vec_size,
+                      dropout=opt.dropout,
+                      word_padding_idx=char_padding_idx,
+                      word_vocab_size=num_char_embeddings)
 
 
 def make_embeddings(opt, word_dict, feature_dicts, for_encoder=True):
@@ -65,10 +88,11 @@ def make_encoder(opt, embeddings):
         return CNNEncoder(opt.enc_layers, opt.rnn_size,
                           opt.cnn_kernel_width,
                           opt.dropout, embeddings)
-    elif opt.encoder_type == "char_cnn":
-        return CharCNNEncoder(opt.enc_layers, opt.rnn_size,
-                              opt.cnn_kernel_width,
-                              opt.dropout, embeddings)
+    elif opt.encoder_type == "charcnn":
+        # Need to change these options to reflect CharCNNEncoder
+        return CharCNNEncoder(opt.rnn_type, opt.brnn, opt.enc_layers,
+                          opt.rnn_size, opt.char_kernel_width, opt.char_num_kernels, 
+                          opt.char_num_highway_layers, opt.dropout, embeddings)
     elif opt.encoder_type == "mean":
         return MeanEncoder(opt.enc_layers, embeddings)
     else:
@@ -116,8 +140,9 @@ def make_decoder(opt, embeddings):
 def load_test_model(opt, dummy_opt):
     checkpoint = torch.load(opt.model,
                             map_location=lambda storage, loc: storage)
+    print(opt.src_chars)
     fields = onmt.io.load_fields_from_vocab(
-        checkpoint['vocab'], data_type=opt.data_type)
+        checkpoint['vocab'], data_type=opt.data_type, src_chars=opt.src_chars, tgt_chars=opt.tgt_chars)
 
     model_opt = checkpoint['opt']
     for arg in dummy_opt:
@@ -142,16 +167,22 @@ def make_base_model(model_opt, fields, gpu, checkpoint=None):
     Returns:
         the NMTModel.
     """
-    assert model_opt.model_type in ["text", "img", "audio"], \
+    assert model_opt.model_type in ["text", "img", "audio", "char"], \
         ("Unsupported model type %s" % (model_opt.model_type))
 
     # Make encoder.
-    if model_opt.model_type == "text":
+    if model_opt.model_type == "text" or (model_opt.model_type == "char" and model_opt.encoder_type != "charcnn"):
         src_dict = fields["src"].vocab
         feature_dicts = onmt.io.collect_feature_vocabs(fields, 'src')
         src_embeddings = make_embeddings(model_opt, src_dict,
                                          feature_dicts)
         encoder = make_encoder(model_opt, src_embeddings)
+
+    elif model_opt.model_type == "char" and model_opt.encoder_type == "charcnn":
+        char_dict = fields["src"].vocab
+        char_embeddings = make_char_embeddings(model_opt, char_dict)
+        encoder = make_encoder(model_opt, char_embeddings)
+
     elif model_opt.model_type == "img":
         encoder = ImageEncoder(model_opt.enc_layers,
                                model_opt.brnn,

@@ -80,13 +80,23 @@ def build_save_text_dataset_in_shards(data_type, src_corpus, tgt_corpus, fields,
               '(shard_size = %d bytes).' % opt.max_shard_size)
 
     ret_list = []
-    src_iter = onmt.io.ShardedTextCorpusIterator(
-                src_corpus, opt.src_seq_length_trunc,
-                "src", opt.max_shard_size)
-    tgt_iter = onmt.io.ShardedTextCorpusIterator(
+
+    if data_type == 'text':
+        src_iter = onmt.io.ShardedTextCorpusIterator(
+                    src_corpus, opt.src_seq_length_trunc,
+                    "src", opt.max_shard_size)
+        tgt_iter = onmt.io.ShardedTextCorpusIterator(
                 tgt_corpus, opt.tgt_seq_length_trunc,
                 "tgt", opt.max_shard_size,
                 assoc_iter=src_iter)
+    elif data_type == 'char':
+        src_iter = onmt.io.ShardedCharCorpusIterator(
+                    src_corpus, opt.src_seq_length_trunc,
+                    "src", opt.max_shard_size, chars=opt.src_chars, max_word_length=opt.max_word_length)
+        tgt_iter = onmt.io.ShardedCharCorpusIterator(
+                tgt_corpus, opt.tgt_seq_length_trunc,
+                "tgt", opt.max_shard_size,
+                assoc_iter=src_iter, chars=opt.tgt_chars, max_word_length=opt.max_word_length)
 
     index = 0
     while not src_iter.hit_end():
@@ -104,7 +114,9 @@ def build_save_text_dataset_in_shards(data_type, src_corpus, tgt_corpus, fields,
                 src_iter.num_feats, tgt_iter.num_feats,
                 src_seq_length=opt.src_seq_length,
                 tgt_seq_length=opt.tgt_seq_length,
-                dynamic_dict=opt.dynamic_dict)
+                dynamic_dict=opt.dynamic_dict, 
+                src_chars=opt.src_chars, 
+                tgt_chars=opt.tgt_chars)
 
         # We save fields in vocab.pt seperately, so make it empty.
         dataset.fields = []
@@ -168,7 +180,7 @@ def build_save_vocab(train_dataset, fields, opt):
                                  opt.src_vocab_size,
                                  opt.src_words_min_frequency,
                                  opt.tgt_vocab_size,
-                                 opt.tgt_words_min_frequency)
+                                 opt.tgt_words_min_frequency, src_chars=opt.src_chars, tgt_chars=opt.tgt_chars)
 
     # Can't save fields, so remove/reconstruct at training time.
     vocab_file = opt.save_data + '.vocab.pt'
@@ -185,7 +197,8 @@ def main():
     print(" * number of target features: %d." % tgt_nfeats)
 
     print("Building `Fields` object...")
-    fields = onmt.io.get_fields(opt.data_type, src_nfeats, tgt_nfeats)
+    fields = onmt.io.get_fields(opt.data_type, src_nfeats, tgt_nfeats, 
+        src_chars=opt.src_chars, tgt_chars=opt.tgt_chars)
 
     print("Building & saving training data...")
     train_dataset_files = build_save_dataset('train', fields, opt)

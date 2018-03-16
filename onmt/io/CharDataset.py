@@ -10,7 +10,7 @@ import torch
 import torchtext
 
 from onmt.Utils import aeq
-from onmt.io.DatasetBase import ONMTDatasetBase, PAD_WORD, BOS_WORD, EOS_WORD
+from onmt.io.DatasetBase import ONMTDatasetBase, PAD_WORD, BOS_WORD, EOS_WORD, BOS_CHAR, EOS_CHAR
 
 
 class CharDataset(ONMTDatasetBase):
@@ -37,13 +37,15 @@ class CharDataset(ONMTDatasetBase):
     def __init__(self, fields, src_examples_iter, tgt_examples_iter,
                  num_src_feats=0, num_tgt_feats=0,
                  src_seq_length=0, tgt_seq_length=0,
-                 dynamic_dict=True, use_filter_pred=True):
+                 dynamic_dict=True, use_filter_pred=True, src_chars=False, tgt_chars=False):
         self.data_type = 'char'
+
+        self.src_chars=src_chars
+        self.tgt_chars=tgt_chars
 
         # self.src_vocabs: mutated in dynamic_dict, used in
         # collapse_copy_scores and in Translator.py
         self.src_vocabs = []
-        self.char_vocabs = []
 
         self.n_src_feats = num_src_feats
         self.n_tgt_feats = num_tgt_feats
@@ -66,6 +68,7 @@ class CharDataset(ONMTDatasetBase):
 
         out_fields = [(k, fields[k]) if k in fields else (k, None)
                       for k in keys]
+
         example_values = ([ex[k] for k in keys] for ex in examples_iter)
         out_examples = (self._construct_example_fromlist(
                             ex_values, out_fields)
@@ -76,6 +79,7 @@ class CharDataset(ONMTDatasetBase):
         out_examples = list(out_examples)
 
         def filter_pred(example):
+
             return 0 < len(example.src) <= src_seq_length \
                and 0 < len(example.tgt) <= tgt_seq_length
 
@@ -166,7 +170,7 @@ class CharDataset(ONMTDatasetBase):
                 yield example_dict, n_feats
 
     @staticmethod
-    def get_fields(n_src_features, n_tgt_features):
+    def get_fields(n_src_features, n_tgt_features, src_chars=False, tgt_chars=False):
         """
         Args:
             n_src_features (int): the number of source features to
@@ -180,21 +184,35 @@ class CharDataset(ONMTDatasetBase):
         """
         fields = {}
 
-        fields["src"] = torchtext.data.Field(
-            pad_token=PAD_WORD,
-            include_lengths=True)
+        if src_chars:
+            print("Got src_chars argument")
+            fields["src"] = CharField(
+                init_token=BOS_CHAR,
+                eos_token=EOS_CHAR,
+                pad_token=PAD_WORD, 
+                include_lengths=True)
+
+        else:
+            fields["src"] = torchtext.data.Field(
+                pad_token=PAD_WORD,
+                include_lengths=True)
 
         for j in range(n_src_features):
             fields["src_feat_"+str(j)] = \
                 torchtext.data.Field(pad_token=PAD_WORD)
 
-        fields["tgt"] = torchtext.data.Field(
-            init_token=BOS_WORD, eos_token=EOS_WORD,
-            pad_token=PAD_WORD)
-
-        fields["char"] = torchtext.data.Field(
-            init_token=BOS_WORD, eos_token=EOS_WORD,
-            pad_token=PAD_WORD)
+        # Maybe need BOS_WORD and EOS_WORD here too
+        # would need new attr in CharField for that though
+        if tgt_chars:
+            fields["tgt"] = CharField(
+                init_token=BOS_CHAR,
+                eos_token=EOS_CHAR,
+                pad_token=PAD_WORD, 
+                include_lengths=True)
+        else:
+            fields["tgt"] = torchtext.data.Field(
+                init_token=BOS_WORD, eos_token=EOS_WORD,
+                pad_token=PAD_WORD)
 
         for j in range(n_tgt_features):
             fields["tgt_feat_"+str(j)] = \
@@ -270,7 +288,7 @@ class CharDataset(ONMTDatasetBase):
             yield example
 
 
-class ShardedTextCorpusIterator(object):
+class ShardedCharCorpusIterator(object):
     """
     This is the iterator for text corpus, used for sharding large text
     corpus into small shards, to avoid hogging memory.
@@ -280,7 +298,7 @@ class ShardedTextCorpusIterator(object):
     into (example_dict, n_features) tuples when iterates.
     """
     def __init__(self, corpus_path, line_truncate, side, shard_size,
-                 assoc_iter=None):
+                 assoc_iter=None, chars=False, max_word_length=0):
         """
         Args:
             corpus_path: the corpus file path.
@@ -303,6 +321,8 @@ class ShardedTextCorpusIterator(object):
         self.side = side
         self.shard_size = shard_size
         self.assoc_iter = assoc_iter
+        self.chars = chars
+        self.max_word_length=max_word_length
         self.last_pos = 0
         self.line_index = -1
         self.eof = False
@@ -379,6 +399,9 @@ class ShardedTextCorpusIterator(object):
             line = line[:self.line_truncate]
         words, feats, n_feats = CharDataset.extract_text_features(line)
         example_dict = {self.side: words, "indices": index}
+        if self.chars:
+            characters = tuple([tuple(word[:self.max_word_length]) for word in words])
+            example_dict = {self.side: characters, "indices": index}
         if feats:
             # All examples must have same number of features.
             aeq(self.n_feats, n_feats)
@@ -388,3 +411,31 @@ class ShardedTextCorpusIterator(object):
                                 for j, f in enumerate(feats))
 
         return example_dict
+
+class CharField(torchtext.data.Field):
+    def pad(self, minibatch):
+        """Pads sentence so each word has same number of characters
+        and each sentence has same number of words
+        """
+
+        # Maybe use fix length to set max_word_len
+
+        minibatch = list(minibatch)
+        max_len = max(len(x) for x in minibatch)
+        max_word_len = max(len(w) for x in minibatch for w in x)
+        padded, lengths = [], []
+
+        padded_lengths = []
+
+        for x in minibatch:
+            padded_x = []
+            for w in x:
+                padded_x += [self.init_token] + list(w) + [self.eos_token] + [self.pad_token] * max(0, max_word_len - len(w))
+            padded_x += [self.pad_token] * (max_word_len + 2) * max(0, max_len - len(x))
+            if len(padded_x) < max_len*(max_word_len + 2):
+                print(padded_x)
+            padded.append(padded_x)
+            padded_lengths.append(len(padded_x))
+            lengths.append(len(x))
+
+        return (padded, lengths)

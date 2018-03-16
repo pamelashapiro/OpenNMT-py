@@ -9,6 +9,8 @@ PAD_WORD = '<blank>'
 UNK = 0
 BOS_WORD = '<s>'
 EOS_WORD = '</s>'
+BOS_CHAR = '{'
+EOS_CHAR = '}'
 
 
 class ONMTDatasetBase(torchtext.data.Dataset):
@@ -34,7 +36,7 @@ class ONMTDatasetBase(torchtext.data.Dataset):
         "This is a hack. Something is broken with torch pickle."
         return super(ONMTDatasetBase, self).__reduce_ex__()
 
-    def load_fields(self, vocab_dict):
+    def load_fields(self, vocab_dict, src_chars=False, tgt_chars=False):
         """ Load fields from vocab.pt, and set the `fields` attribute.
 
         Args:
@@ -42,7 +44,7 @@ class ONMTDatasetBase(torchtext.data.Dataset):
         """
         from onmt.io.IO import load_fields_from_vocab
 
-        fields = load_fields_from_vocab(vocab_dict.items(), self.data_type)
+        fields = load_fields_from_vocab(vocab_dict.items(), self.data_type, src_chars=src_chars, tgt_chars=tgt_chars)
         self.fields = dict([(k, f) for (k, f) in fields.items()
                            if k in self.examples[0].__dict__])
 

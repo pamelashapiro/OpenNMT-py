@@ -197,13 +197,13 @@ class Trainer(object):
             cur_dataset = valid_iter.get_cur_dataset()
             self.valid_loss.cur_dataset = cur_dataset
 
-            src = onmt.io.make_features(batch, 'src', self.data_type)
+            src = onmt.io.make_features(batch, 'src', data_type=self.data_type)
             if self.data_type == 'text':
                 _, src_lengths = batch.src
             else:
                 src_lengths = None
 
-            tgt = onmt.io.make_features(batch, 'tgt')
+            tgt = onmt.io.make_features(batch, 'tgt', data_type=self.data_type)
 
             # F-prop through the model.
             outputs, attns, _ = self.model(src, tgt, src_lengths)
@@ -271,7 +271,7 @@ class Trainer(object):
 
             dec_state = None
             src = onmt.io.make_features(batch, 'src', self.data_type)
-            if self.data_type == 'text':
+            if self.data_type == 'text' or self.data_type == 'char':
                 _, src_lengths = batch.src
                 report_stats.n_src_words += src_lengths.sum()
             else:
