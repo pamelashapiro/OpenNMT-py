@@ -140,7 +140,6 @@ def make_decoder(opt, embeddings):
 def load_test_model(opt, dummy_opt):
     checkpoint = torch.load(opt.model,
                             map_location=lambda storage, loc: storage)
-    print(opt.src_chars)
     fields = onmt.io.load_fields_from_vocab(
         checkpoint['vocab'], data_type=opt.data_type, src_chars=opt.src_chars, tgt_chars=opt.tgt_chars)
 

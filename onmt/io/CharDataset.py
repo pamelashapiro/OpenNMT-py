@@ -400,6 +400,7 @@ class ShardedCharCorpusIterator(object):
         words, feats, n_feats = CharDataset.extract_text_features(line)
         example_dict = {self.side: words, "indices": index}
         if self.chars:
+            #non_truncated_characters = tuple([tuple(word) for word in words])
             characters = tuple([tuple(word[:self.max_word_length]) for word in words])
             example_dict = {self.side: characters, "indices": index}
         if feats:

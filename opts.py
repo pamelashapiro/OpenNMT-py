@@ -189,7 +189,7 @@ def preprocess_opts(parser):
     group.add_argument('-tgt_seq_length_trunc', type=int, default=0,
                        help="Truncate target sequence length.")
 
-    parser.add_argument('--max_word_length', type=int, default=35, help="For the character models, maximum word length.")
+    group.add_argument('-max_word_length', type=int, default=35, help="For the character models, maximum word length.")
     group.add_argument('-lower', action='store_true', help='lowercase data')
 
     # Data processing options
@@ -375,6 +375,10 @@ def translate_opts(parser):
     group = parser.add_argument_group('Data')
     group.add_argument('-data_type', default="text",
                        help="Type of the source input. Options: [text|img|char].")
+    group.add_argument('-src_chars', action='store_true',
+                       help="""Whether to use characters on the source side.""")
+    group.add_argument('-tgt_chars', action='store_true',
+                       help="""Whether to use characters on the target side.""")
 
     group.add_argument('-src',   required=True,
                        help="""Source sequence to decode (one line per
@@ -406,6 +410,7 @@ def translate_opts(parser):
                        help='Minimum prediction length')
     group.add_argument('-max_length', type=int, default=100,
                        help='Maximum prediction length.')
+    group.add_argument('-max_word_length', type=int, default=35, help="For the character models, maximum word length.")
     group.add_argument('-max_sent_length', action=DeprecateAction,
                        help="Deprecated, use `-max_length` instead")
 
