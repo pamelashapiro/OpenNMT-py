@@ -91,7 +91,7 @@ class Translator(object):
         # (1) Run the encoder on the src.
         src = onmt.io.make_features(batch, 'src', data_type)
         src_lengths = None
-        if data_type == 'text':
+        if data_type == 'text' or data_type == 'char':
             _, src_lengths = batch.src
 
         enc_states, context = self.model.encoder(src, src_lengths)
@@ -105,7 +105,7 @@ class Translator(object):
 
         # (2) Repeat src objects `beam_size` times.
         src_map = rvar(batch.src_map.data) \
-            if data_type == 'text' and self.copy_attn else None
+            if (data_type == 'text' or data_type == 'char') and self.copy_attn else None
         context = rvar(context.data)
         context_lengths = src_lengths.repeat(beam_size)
         dec_states.repeat_beam_size_times(beam_size)
@@ -186,7 +186,7 @@ class Translator(object):
 
     def _run_target(self, batch, data):
         data_type = data.data_type
-        if data_type == 'text':
+        if data_type == 'text' or data_type == 'char':
             _, src_lengths = batch.src
         else:
             src_lengths = None

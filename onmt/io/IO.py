@@ -176,7 +176,7 @@ def collect_feature_vocabs(fields, side):
 
 
 def build_dataset(fields, data_type, src_path, tgt_path, src_dir=None,
-                  src_seq_length=0, tgt_seq_length=0, max_word_length=None,
+                  src_seq_length=0, tgt_seq_length=0,
                   src_seq_length_trunc=0, tgt_seq_length_trunc=0,
                   dynamic_dict=True, sample_rate=0,
                   window_size=0, window_stride=0, window=None,
@@ -226,7 +226,6 @@ def build_dataset(fields, data_type, src_path, tgt_path, src_dir=None,
                               num_src_feats, num_tgt_feats,
                               src_seq_length=src_seq_length,
                               tgt_seq_length=tgt_seq_length,
-                              max_word_length=max_word_length,
                               dynamic_dict=dynamic_dict,
                               use_filter_pred=use_filter_pred,
                               src_chars=src_chars,

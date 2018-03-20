@@ -62,7 +62,7 @@ class TranslationBuilder(object):
         # Sorting
         inds, perm = torch.sort(batch.indices.data)
         data_type = self.data.data_type
-        if data_type == 'text':
+        if data_type == 'text' or data_type == 'char':
             src = batch.src[0].data.index_select(1, perm)
         else:
             src = None
@@ -74,7 +74,7 @@ class TranslationBuilder(object):
 
         translations = []
         for b in range(batch_size):
-            if data_type == 'text':
+            if data_type == 'text' or data_type == 'char':
                 src_vocab = self.data.src_vocabs[inds[b]] \
                   if self.data.src_vocabs else None
                 src_raw = self.data.examples[inds[b]].src
