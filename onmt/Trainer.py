@@ -163,6 +163,9 @@ class Trainer(object):
                         true_batchs, total_stats,
                         report_stats, normalization)
 
+                #for param in self.model.parameters():
+                #    print(param.grad)
+
                 if report_func is not None:
                     report_stats = report_func(
                             epoch, idx, num_batches,

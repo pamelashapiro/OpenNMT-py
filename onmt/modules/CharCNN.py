@@ -91,13 +91,18 @@ class CharCNNEncoder(EncoderBase):
         self._check_args(input, lengths, hidden)
 
         emb = self.embeddings(input)
+        #print("emb", emb)
         s_len, batch, emb_dim = emb.size()
 
         # Convert to batch of words
         num_words = max(lengths)
         word_len = int(s_len / num_words)
-        cnn_emb = emb.view(num_words * batch, emb_dim, word_len)
-        cnn_output = self.conv(cnn_emb) # Maybe should wrap this in Tanh
+        cnn_emb = emb.view(num_words, word_len, batch, emb_dim)
+        cnn_emb = cnn_emb.transpose(0, 1).contiguous()
+        cnn_emb = cnn_emb.view(word_len, num_words * batch, emb_dim)
+        cnn_emb = cnn_emb.transpose(0,2).transpose(0,1).contiguous()
+        cnn_emb = cnn_emb.view(num_words * batch, emb_dim, word_len)
+        cnn_output = self.conv(cnn_emb)
         pool_output = torch.max(F.tanh(cnn_output), 2)[0]
         highway_output = self.highway(pool_output)
         word_emb = highway_output.view(num_words, batch, -1)
