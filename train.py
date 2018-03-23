@@ -38,7 +38,8 @@ if opt.layers != -1:
     opt.enc_layers = opt.layers
     opt.dec_layers = opt.layers
 
-opt.brnn = (opt.encoder_type == "brnn")
+opt.brnn = (opt.encoder_type == "brnn" or opt.encoder_type == "charcnn")
+print("seed: ", opt.seed)
 if opt.seed > 0:
     random.seed(opt.seed)
     torch.manual_seed(opt.seed)

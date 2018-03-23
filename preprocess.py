@@ -33,6 +33,7 @@ def parse_args():
     opts.preprocess_opts(parser)
 
     opt = parser.parse_args()
+    print("seed: ", opt.seed)
     torch.manual_seed(opt.seed)
 
     check_existing_pt_files(opt)
