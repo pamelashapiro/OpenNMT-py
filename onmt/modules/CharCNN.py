@@ -52,7 +52,7 @@ class CharCNNEncoder(EncoderBase):
        embeddings (:obj:`onmt.modules.Embeddings`): embedding module to use
     """
     def __init__(self, rnn_type, bidirectional, num_layers,
-                 hidden_size, kernel_width, num_kernels, num_highway_layers, 
+                 hidden_size, feature_maps, kernels, num_highway_layers,
                  dropout=0.0, embeddings=None):
         super(CharCNNEncoder, self).__init__()
         assert embeddings is not None
@@ -63,10 +63,13 @@ class CharCNNEncoder(EncoderBase):
         self.embeddings = embeddings
         self.no_pack_padded_seq = False
 
-        print("kernel_width: ", kernel_width)
-
-        self.conv = nn.Conv1d(embeddings.embedding_size, num_kernels, kernel_width)
-        self.highway = Highway(num_kernels, num_highway_layers)
+        assert len(feature_maps) == len(kernels)
+        self.conv_layers = nn.ModuleList()
+        highway_input_size = 0
+        for i, fm in enumerate(feature_maps):
+            self.conv_layers.append(nn.Conv1d(embeddings.embedding_size, fm, kernels[i]))
+            highway_input_size += fm
+        self.highway = Highway(highway_input_size, num_highway_layers)
 
         # Use pytorch version when available.
         if rnn_type == "SRU":
@@ -80,7 +83,7 @@ class CharCNNEncoder(EncoderBase):
                     bidirectional=bidirectional)
         else:
             self.rnn = getattr(nn, rnn_type)(
-                    input_size=num_kernels,
+                    input_size=highway_input_size,
                     hidden_size=hidden_size,
                     num_layers=num_layers,
                     dropout=dropout,
@@ -91,20 +94,28 @@ class CharCNNEncoder(EncoderBase):
         self._check_args(input, lengths, hidden)
 
         emb = self.embeddings(input)
-        #print("emb", emb)
         s_len, batch, emb_dim = emb.size()
 
         # Convert to batch of words
         num_words = max(lengths)
         word_len = int(s_len / num_words)
-        cnn_emb = emb.view(num_words, word_len, batch, emb_dim)
-        cnn_emb = cnn_emb.transpose(0, 1).contiguous()
-        cnn_emb = cnn_emb.view(word_len, num_words * batch, emb_dim)
-        cnn_emb = cnn_emb.transpose(0,2).transpose(0,1).contiguous()
+        cnn_emb = emb.view(num_words, word_len, batch, emb_dim).transpose(0, 1).contiguous()
+        cnn_emb = cnn_emb.view(word_len, num_words * batch, emb_dim).permute(1, 2, 0).contiguous()
         cnn_emb = cnn_emb.view(num_words * batch, emb_dim, word_len)
-        cnn_output = self.conv(cnn_emb)
-        pool_output = torch.max(F.tanh(cnn_output), 2)[0]
-        highway_output = self.highway(pool_output)
+
+        #cnn_output = self.conv(cnn_emb)
+        #pool_output = torch.max(F.tanh(cnn_output), 2)[0]
+        #highway_output = self.highway(pool_output)
+
+        pool_outputs = []
+        for i, conv in enumerate(self.conv_layers):
+            cnn_output = conv(cnn_emb)
+            pool_output = F.max_pool1d(F.tanh(cnn_output), cnn_output.data.shape[-1]).squeeze()
+            pool_outputs.append(pool_output)
+
+        concat_output = torch.cat(pool_outputs, dim=1)
+        highway_output = self.highway(concat_output)
+
         word_emb = highway_output.view(num_words, batch, -1)
 
         packed_emb = word_emb

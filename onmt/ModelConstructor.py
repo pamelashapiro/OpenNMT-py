@@ -91,7 +91,7 @@ def make_encoder(opt, embeddings):
     elif opt.encoder_type == "charcnn":
         # Need to change these options to reflect CharCNNEncoder
         return CharCNNEncoder(opt.rnn_type, opt.brnn, opt.enc_layers,
-                          opt.rnn_size, opt.char_kernel_width, opt.char_num_kernels, 
+                          opt.rnn_size, opt.feature_maps, opt.kernels,
                           opt.char_num_highway_layers, opt.dropout, embeddings)
     elif opt.encoder_type == "mean":
         return MeanEncoder(opt.enc_layers, embeddings)

@@ -74,10 +74,10 @@ def model_opts(parser):
     group.add_argument('-cnn_kernel_width', type=int, default=3,
                        help="""Size of windows in the cnn, the kernel_size is
                        (cnn_kernel_width, 1) in conv layer""")
-    group.add_argument('-char_kernel_width', type=int, default=6,
-                       help="""Size of windows in the charCNN""")
-    group.add_argument('-char_num_kernels', type=int, default=1000,
-                       help="""Number of kernels in the charCNN""")
+
+    group.add_argument('-feature_maps', type=int, nargs='+', default=[50,100,150,200,200,200,200], help="""Number of feature maps in the charCNN""")
+    group.add_argument('-kernels', type=int, nargs='+', default = [1,2,3,4,5,6,7], help="""Kernel widths for charCNN""")
+
     group.add_argument('-char_num_highway_layers', type=int, default=2,
                        help="""Number of highway layers in the charCNN""")
 
