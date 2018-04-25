@@ -15,6 +15,7 @@ from onmt.Models import EncoderBase
 import onmt
 from onmt.Utils import aeq
 
+
 class Highway(nn.Module):
     def __init__(self, input_size, num_layers):
         super(Highway, self).__init__()
@@ -63,7 +64,7 @@ class CharCNNEncoder(EncoderBase):
         self.embeddings = embeddings
         self.no_pack_padded_seq = False
 
-        print("kernel_width: ", kernel_width)
+        print("kernel_width: ", kernel_width) # For now just one kernel width, multiple as in paper didn't help
 
         self.conv = nn.Conv1d(embeddings.embedding_size, num_kernels, kernel_width)
         self.highway = Highway(num_kernels, num_highway_layers)
@@ -91,18 +92,20 @@ class CharCNNEncoder(EncoderBase):
         self._check_args(input, lengths, hidden)
 
         emb = self.embeddings(input)
-        #print("emb", emb)
-        s_len, batch, emb_dim = emb.size()
+        s_len, batch, emb_dim = emb.size()  # s_len is num of chars in sentence
 
-        # Convert to batch of words
+        # Convert to batch of words rather than sentences
         num_words = max(lengths)
         word_len = int(s_len / num_words)
-        cnn_emb = emb.view(num_words, word_len, batch, emb_dim)
-        cnn_emb = cnn_emb.transpose(0, 1).contiguous()
-        cnn_emb = cnn_emb.view(word_len, num_words * batch, emb_dim)
-        cnn_emb = cnn_emb.transpose(0,2).transpose(0,1).contiguous()
-        cnn_emb = cnn_emb.view(num_words * batch, emb_dim, word_len)
-        cnn_output = self.conv(cnn_emb)
+        emb = emb.view(num_words, word_len, batch, emb_dim)
+        emb = emb.transpose(0, 1).contiguous()
+        emb = emb.view(word_len, num_words * batch, emb_dim)  # merge num_words into batch size
+        emb = emb.permute(1, 2, 0).contiguous()
+        emb = emb.view(num_words * batch, emb_dim, word_len)  # now each element in batch is sequence of chars in word
+
+        cnn_output = self.conv(emb)
+
+        # Using max pooling approach from harvardnlp/seq2seq-attn
         pool_output = torch.max(F.tanh(cnn_output), 2)[0]
         highway_output = self.highway(pool_output)
         word_emb = highway_output.view(num_words, batch, -1)
